@@ -1,0 +1,76 @@
+# WhatCable-Linux — Agent Guidelines
+
+## Project Overview
+
+WhatCable-Linux is a Linux port of [WhatCable](https://github.com/darrylmorley/whatcable) (macOS) by Darryl Morley. It is a KDE Plasma 6 Plasmoid + CLI tool that shows USB device and USB-C cable information by reading Linux sysfs.
+
+## Architecture
+
+Three components share a single core library:
+
+- **`src/core/`** — `libwhatcablecore`, a static C++ library. Reads sysfs, decodes USB PD data, and produces human-readable summaries. No Qt GUI dependencies — only Qt6::Core.
+- **`src/cli/`** — `whatcable-linux` CLI binary. Uses the core library. Supports `--json`, `--watch`, `--raw`.
+- **`src/plasmoid/`** — KDE Plasma 6 widget. A C++ QML plugin (`DeviceModel`) wraps the core library's `DeviceManager` as a `QAbstractListModel`. QML files in `contents/ui/` provide the UI.
+
+## Key Data Flow
+
+```
+/sys/bus/usb/devices/         → UsbDevice.cpp
+/sys/class/typec/             → TypeCPort.cpp
+/sys/class/usb_power_delivery/ → PowerDelivery.cpp
+                                    ↓
+                              DeviceManager.cpp  ← UDevMonitor.cpp (hotplug)
+                                    ↓
+                              DeviceSummary.cpp (plain-English output)
+                                    ↓
+                        CLI (main.cpp)  |  Plasmoid (DeviceModel → QML)
+```
+
+## Code Conventions
+
+- C++20, Qt 6 style. Use `QStringLiteral()` for string literals.
+- All core classes are in the `WhatCable` namespace.
+- sysfs reads go through `SysfsReader` — never read `/sys/` directly with raw file I/O.
+- Source files derived from the original Swift code must keep the attribution header: `// Derived from WhatCable by Darryl Morley (https://github.com/darrylmorley/whatcable)`
+- Handle missing sysfs paths gracefully — return empty/nullopt, never crash. Many systems lack `/sys/class/typec/` or `/sys/class/usb_power_delivery/`.
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build
+```
+
+The plasmoid is only built when KDE Frameworks 6 dev packages are installed. Without them, the core library and CLI still build fine.
+
+## Testing
+
+- Run the CLI: `./build/src/cli/whatcable-linux`
+- JSON output: `./build/src/cli/whatcable-linux --json`
+- Watch mode: `./build/src/cli/whatcable-linux --watch`
+- Plasmoid testing: `plasmoidviewer -a build/src/plasmoid` (requires plasma-sdk)
+
+## Key Files to Know
+
+| File | Purpose |
+|---|---|
+| `src/core/UsbDevice.h/cpp` | Enumerates all USB devices from `/sys/bus/usb/devices/` |
+| `src/core/TypeCPort.h/cpp` | Reads USB-C port state from `/sys/class/typec/` |
+| `src/core/PDDecoder.h/cpp` | USB PD VDO bit-field decoding (ported from PDVDO.swift) |
+| `src/core/PowerDelivery.h/cpp` | Parses PDO lists from `/sys/class/usb_power_delivery/` |
+| `src/core/DeviceSummary.h/cpp` | Generates headlines, subtitles, bullets per device |
+| `src/core/ChargingDiagnostic.h/cpp` | Identifies USB-C charging bottlenecks |
+| `src/core/DeviceManager.h/cpp` | Aggregates all sources, correlates data, owns refresh logic |
+| `src/core/UDevMonitor.h/cpp` | libudev hotplug monitoring |
+| `src/core/VendorDB.h/cpp` | USB VID → vendor name lookup |
+| `src/core/UsbClassDB.h/cpp` | USB class code → human name |
+| `src/plasmoid/plugin/DeviceModel.h/cpp` | QAbstractListModel bridging core to QML |
+| `src/plasmoid/contents/ui/main.qml` | Plasmoid entry: compact + full representation |
+
+## Adding New Vendors
+
+Add entries to the `kVendors` map in `src/core/VendorDB.cpp`. Format: `{0xVID, QStringLiteral("Vendor Name")}`.
+
+## Adding New USB Class Codes
+
+Add cases to `UsbClassDB::className()` or `interfaceClassName()` in `src/core/UsbClassDB.cpp`.
