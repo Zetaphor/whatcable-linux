@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:43
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          dnf install -y gcc-c++ cmake extra-cmake-modules \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            kf6-kirigami-devel kf6-ki18n-devel kf6-kcoreaddons-devel \
+            kf6-kpackage-devel libplasma-devel plasma-workspace-devel \
+            systemd-devel tar gzip
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Package plasmoid
+        run: |
+          cd build/pkg
+          tar czf whatcable-linux-plasmoid-${GITHUB_REF_NAME}.tar.gz org.kde.whatcable/
+
+      - name: Package CLI
+        run: |
+          mkdir -p build/dist
+          cp build/src/cli/whatcable-linux build/dist/
+          cp build/src/plasmoid/libwhatcable-plasmoid-plugin.so build/dist/
+          cp -r build/qml build/dist/
+          cd build/dist
+          tar czf ../whatcable-linux-${GITHUB_REF_NAME}-x86_64.tar.gz .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            build/pkg/whatcable-linux-plasmoid-*.tar.gz
+            build/whatcable-linux-*-x86_64.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            assets/**/*.tar.gz
