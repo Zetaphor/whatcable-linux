@@ -3,7 +3,7 @@
     "KPlugin": {
         "Authors": [
             {
-                "Name": "WhatCable-Linux Contributors"
+                "Name": "Zetaphor"
             }
         ],
         "Category": "System Information",
@@ -13,7 +13,7 @@
         "License": "MIT",
         "Name": "WhatCable",
         "Version": "0.1.0",
-        "Website": "https://github.com/darrylmorley/whatcable"
+        "Website": "https://github.com/zetaphor/whatcable-linux"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
 }
