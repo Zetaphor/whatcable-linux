@@ -44,7 +44,7 @@ cmake --build build
 sudo cmake --install build
 
 # Or install just the plasmoid for your user
-kpackagetool6 -t Plasma/Applet -i build/src/plasmoid
+kpackagetool6 -t Plasma/Applet -i build/pkg/org.kde.whatcable
 ```
 
 ### CLI only
