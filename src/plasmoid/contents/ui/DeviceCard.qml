@@ -72,22 +72,12 @@ ColumnLayout {
                     Layout.preferredHeight: liveChargingRow.implicitHeight + Kirigami.Units.smallSpacing
                     Layout.preferredWidth: liveChargingRow.implicitWidth + Kirigami.Units.smallSpacing * 2
 
-                    RowLayout {
+                    PlasmaComponents.Label {
                         id: liveChargingRow
                         anchors.centerIn: parent
-                        spacing: Kirigami.Units.smallSpacing / 2
-
-                        Kirigami.Icon {
-                            source: "battery-charging"
-                            Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                            Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                        }
-
-                        PlasmaComponents.Label {
-                            text: (model.liveChargingWatts || 0).toFixed(1) + " W"
-                            font.bold: true
-                            font.pointSize: Kirigami.Theme.smallFont.pointSize
-                        }
+                        text: (model.liveChargingWatts || 0).toFixed(1) + " W"
+                        font.bold: true
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
                 }
 

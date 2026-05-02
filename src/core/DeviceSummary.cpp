@@ -119,14 +119,18 @@ DeviceSummary DeviceSummary::fromTypeCPort(
     s.typecPort = port;
     s.powerDelivery = pd;
     s.cable = cableOpt;
-    s.icon = QStringLiteral("plug");
 
     if (!port.isConnected()) {
         s.status = Empty;
         s.headline = QStringLiteral("USB-C Port %1").arg(port.portNumber);
         s.subtitle = QStringLiteral("Nothing connected");
+        s.icon = QStringLiteral("network-wired-disconnected");
         return s;
     }
+
+    // Default for "connected but unclassified" — overridden below once we know
+    // whether power is flowing.
+    s.icon = QStringLiteral("drive-removable-media-usb");
 
     s.status = Connected;
     s.headline = QStringLiteral("USB-C Port %1").arg(port.portNumber);
@@ -194,6 +198,7 @@ DeviceSummary DeviceSummary::fromTypeCPort(
         if (!live.isEmpty()) {
             s.bullets.append(live);
             s.status = Charging;
+            s.icon = QStringLiteral("battery-good-charging");
         }
     }
 
