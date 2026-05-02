@@ -4,8 +4,31 @@
 #include "VendorDB.h"
 #include "UsbClassDB.h"
 #include "PDDecoder.h"
+#include <cstdint>
 
 namespace WhatCable {
+
+namespace {
+
+// Format the live-negotiated power contract from /sys/class/power_supply/ucsi-source-psy-*.
+// Returns an empty string if either voltage or current is unavailable.
+QString liveChargingLabel(const TypeCPowerSupply &psy)
+{
+    if (!psy.voltageNowUV || !psy.currentNowUA)
+        return {};
+    const double volts = *psy.voltageNowUV / 1'000'000.0;
+    const double amps = *psy.currentNowUA / 1'000'000.0;
+    // Use int64 for the V*A multiplication; PD3.1 EPR voltages × current overflow int32.
+    const int64_t microWatts = static_cast<int64_t>(*psy.voltageNowUV) *
+                               static_cast<int64_t>(*psy.currentNowUA) / 1'000'000LL;
+    const double watts = microWatts / 1'000'000.0;
+    return QStringLiteral("Now charging: %1 V × %2 A = %3 W")
+        .arg(volts, 0, 'f', 1)
+        .arg(amps, 0, 'f', 2)
+        .arg(watts, 0, 'f', 1);
+}
+
+} // namespace
 
 DeviceSummary DeviceSummary::fromUsbDevice(const UsbDevice &dev)
 {
@@ -161,6 +184,17 @@ DeviceSummary DeviceSummary::fromTypeCPort(
             s.bullets.append(QStringLiteral("Passive cable"));
         if (!c.vendorName.isEmpty() && !c.vendorName.startsWith(QStringLiteral("0x")))
             s.bullets.append(QStringLiteral("Cable vendor: %1").arg(c.vendorName));
+    }
+
+    // Live charging power from UCSI sysfs (voltage_now × current_now).
+    // Independent of PD source-capability advertisements — this reflects
+    // what the cable+device combo is actually negotiating right now.
+    if (port.powerSupply && port.powerSupply->online) {
+        QString live = liveChargingLabel(*port.powerSupply);
+        if (!live.isEmpty()) {
+            s.bullets.append(live);
+            s.status = Charging;
+        }
     }
 
     // Power Delivery

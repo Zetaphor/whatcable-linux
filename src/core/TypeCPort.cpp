@@ -3,6 +3,7 @@
 #include "TypeCPort.h"
 #include "SysfsReader.h"
 #include <QDir>
+#include <QFileInfo>
 #include <QRegularExpression>
 
 namespace WhatCable {
@@ -72,6 +73,46 @@ std::optional<TypeCIdentity> TypeCPort::readIdentity(const QString &path)
     return id;
 }
 
+std::optional<TypeCPowerSupply> TypeCPort::readUcsiPowerSupply(const QString &portPath, int portNumber)
+{
+    if (portNumber < 0)
+        return std::nullopt;
+
+    // Resolve the typec port symlink to /sys/devices/platform/USBC0000:00/typec/portN
+    // and extract the UCSI controller id (e.g. "USBC000:00").
+    const QString resolved = QFileInfo(portPath).canonicalFilePath();
+    if (resolved.isEmpty())
+        return std::nullopt;
+
+    static const QRegularExpression controllerRe(QStringLiteral("(USBC[0-9A-Fa-f]+:[0-9A-Fa-f]+)"));
+    auto match = controllerRe.match(resolved);
+    if (!match.hasMatch())
+        return std::nullopt;
+    const QString controller = match.captured(1);
+
+    // The kernel exposes per-port power supplies as ucsi-source-psy-<controller><1-based port>.
+    const QString psyPath = QStringLiteral("/sys/class/power_supply/ucsi-source-psy-%1%2")
+                                .arg(controller)
+                                .arg(portNumber + 1);
+    if (!SysfsReader::pathExists(psyPath))
+        return std::nullopt;
+
+    TypeCPowerSupply psy;
+    psy.sysfsPath = psyPath;
+    psy.name = QFileInfo(psyPath).fileName();
+    psy.online = SysfsReader::readIntAttribute(psyPath + QStringLiteral("/online")).value_or(0) != 0;
+    psy.voltageNowUV = SysfsReader::readIntAttribute(psyPath + QStringLiteral("/voltage_now"));
+    psy.currentNowUA = SysfsReader::readIntAttribute(psyPath + QStringLiteral("/current_now"));
+    psy.currentMaxUA = SysfsReader::readIntAttribute(psyPath + QStringLiteral("/current_max"));
+    psy.voltageMinUV = SysfsReader::readIntAttribute(psyPath + QStringLiteral("/voltage_min"));
+    psy.voltageMaxUV = SysfsReader::readIntAttribute(psyPath + QStringLiteral("/voltage_max"));
+    psy.chargeType = SysfsReader::readAttribute(psyPath + QStringLiteral("/charge_type"));
+    psy.usbType = SysfsReader::readAttribute(psyPath + QStringLiteral("/usb_type"));
+    psy.rawAttributes = SysfsReader::readAllAttributes(psyPath);
+
+    return psy;
+}
+
 std::optional<TypeCPort> TypeCPort::fromSysfs(const QString &path, const QString &name)
 {
     if (!name.startsWith(QStringLiteral("port")))
@@ -118,6 +159,7 @@ std::optional<TypeCPort> TypeCPort::fromSysfs(const QString &path, const QString
     }
 
     port.rawAttributes = SysfsReader::readAllAttributes(path);
+    port.powerSupply = readUcsiPowerSupply(path, port.portNumber);
 
     return port;
 }

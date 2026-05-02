@@ -50,6 +50,11 @@ public:
         ChargingSummaryRole,
         ChargingDetailRole,
         ChargingIsWarningRole,
+        // Live charging power (UCSI)
+        HasLiveChargingRole,
+        LiveChargingWattsRole,
+        LiveChargingVoltsRole,
+        LiveChargingAmpsRole,
     };
     Q_ENUM(Roles)
 
