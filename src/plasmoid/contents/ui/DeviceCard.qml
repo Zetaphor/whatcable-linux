@@ -62,6 +62,25 @@ ColumnLayout {
                     }
                 }
 
+                // Live charging wattage badge (UCSI)
+                Rectangle {
+                    visible: model.hasLiveCharging || false
+                    radius: Kirigami.Units.cornerRadius
+                    color: Qt.rgba(0.2, 0.7, 0.3, 0.18)
+                    border.color: Qt.rgba(0.2, 0.7, 0.3, 0.5)
+                    border.width: 1
+                    Layout.preferredHeight: liveChargingRow.implicitHeight + Kirigami.Units.smallSpacing
+                    Layout.preferredWidth: liveChargingRow.implicitWidth + Kirigami.Units.smallSpacing * 2
+
+                    PlasmaComponents.Label {
+                        id: liveChargingRow
+                        anchors.centerIn: parent
+                        text: (model.liveChargingWatts || 0).toFixed(1) + " W"
+                        font.bold: true
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    }
+                }
+
                 // Expand/collapse button
                 PlasmaComponents.ToolButton {
                     icon.name: card.expanded ? "arrow-up" : "arrow-down"

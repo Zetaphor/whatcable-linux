@@ -29,6 +29,21 @@ struct TypeCCable {
     QMap<QString, QString> rawAttributes;
 };
 
+// Live charging info from /sys/class/power_supply/ucsi-source-psy-*
+struct TypeCPowerSupply {
+    QString sysfsPath;
+    QString name;
+    bool online = false;
+    std::optional<int> voltageNowUV;   // microvolts
+    std::optional<int> currentNowUA;   // microamps
+    std::optional<int> currentMaxUA;
+    std::optional<int> voltageMinUV;
+    std::optional<int> voltageMaxUV;
+    QString chargeType;
+    QString usbType;
+    QMap<QString, QString> rawAttributes;
+};
+
 struct TypeCPort {
     QString sysfsPath;
     QString portName;      // "port0", "port1", ...
@@ -46,6 +61,7 @@ struct TypeCPort {
     std::optional<TypeCPartner> partner;
     bool hasCable = false;
     std::optional<TypeCCable> cable;
+    std::optional<TypeCPowerSupply> powerSupply;
 
     QMap<QString, QString> rawAttributes;
 
@@ -58,6 +74,7 @@ struct TypeCPort {
 private:
     static std::optional<TypeCPort> fromSysfs(const QString &path, const QString &name);
     static std::optional<TypeCIdentity> readIdentity(const QString &path);
+    static std::optional<TypeCPowerSupply> readUcsiPowerSupply(const QString &portPath, int portNumber);
 };
 
 } // namespace WhatCable

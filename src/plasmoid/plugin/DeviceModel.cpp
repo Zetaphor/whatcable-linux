@@ -123,6 +123,31 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const
     case ChargingSummaryRole: return dev.chargingDiag ? dev.chargingDiag->summary : QString();
     case ChargingDetailRole: return dev.chargingDiag ? dev.chargingDiag->detail : QString();
     case ChargingIsWarningRole: return dev.chargingDiag ? dev.chargingDiag->isWarning : false;
+
+    // Live UCSI charging power
+    case HasLiveChargingRole: {
+        if (!dev.typecPort || !dev.typecPort->powerSupply) return false;
+        const auto &p = *dev.typecPort->powerSupply;
+        return p.online && p.voltageNowUV && p.currentNowUA;
+    }
+    case LiveChargingWattsRole: {
+        if (!dev.typecPort || !dev.typecPort->powerSupply) return 0.0;
+        const auto &p = *dev.typecPort->powerSupply;
+        if (!p.voltageNowUV || !p.currentNowUA) return 0.0;
+        const int64_t microWatts = static_cast<int64_t>(*p.voltageNowUV) *
+                                   static_cast<int64_t>(*p.currentNowUA) / 1'000'000LL;
+        return microWatts / 1'000'000.0;
+    }
+    case LiveChargingVoltsRole: {
+        if (!dev.typecPort || !dev.typecPort->powerSupply || !dev.typecPort->powerSupply->voltageNowUV)
+            return 0.0;
+        return *dev.typecPort->powerSupply->voltageNowUV / 1'000'000.0;
+    }
+    case LiveChargingAmpsRole: {
+        if (!dev.typecPort || !dev.typecPort->powerSupply || !dev.typecPort->powerSupply->currentNowUA)
+            return 0.0;
+        return *dev.typecPort->powerSupply->currentNowUA / 1'000'000.0;
+    }
     }
 
     return {};
@@ -161,6 +186,10 @@ QHash<int, QByteArray> DeviceModel::roleNames() const
         {ChargingSummaryRole, "chargingSummary"},
         {ChargingDetailRole, "chargingDetail"},
         {ChargingIsWarningRole, "chargingIsWarning"},
+        {HasLiveChargingRole, "hasLiveCharging"},
+        {LiveChargingWattsRole, "liveChargingWatts"},
+        {LiveChargingVoltsRole, "liveChargingVolts"},
+        {LiveChargingAmpsRole, "liveChargingAmps"},
     };
 }
 
